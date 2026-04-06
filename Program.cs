@@ -7,7 +7,7 @@ class Program
     static void Main()
     {
         using var context = new CustomerDbContext();
-        
+
         // Create database and tables if they don't exist
         context.Database.Migrate();
 
@@ -181,4 +181,3 @@ class Program
         }
     }
 }
-
