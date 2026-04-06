@@ -4,12 +4,14 @@ namespace CustomerManagement
 {
     public class CustomerDbContext : DbContext
     {
+        public CustomerDbContext(DbContextOptions<CustomerDbContext> options) : base(options) { }
+
         public DbSet<Customer> Customers { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            // Update this connection string with your PostgreSQL server details
-            optionsBuilder.UseNpgsql("Host=localhost;Port=5432;Database=customer_db;Username=postgres;Password=postgres");
+            if (!optionsBuilder.IsConfigured)
+                optionsBuilder.UseNpgsql("Host=localhost;Port=5432;Database=customer_db;Username=postgres;Password=postgres");
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
