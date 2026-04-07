@@ -1,6 +1,27 @@
 const BASE = '/api/customers';
 const PRODUCTS_BASE = '/api/products';
 const ORDERS_BASE = '/api/orders';
+const AUTH_BASE = '/api/auth';
+
+export async function login(email, password) {
+  const res = await fetch(`${AUTH_BASE}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function register(data) {
+  const res = await fetch(`${AUTH_BASE}/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
 
 export async function getCustomers() {
   const res = await fetch(BASE);

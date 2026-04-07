@@ -1,144 +1,119 @@
-import { useState, useEffect } from 'react';
-import CustomerTable from './components/CustomerTable';
-import CustomerForm from './components/CustomerForm';
+import { useEffect, useState } from 'react';
+import LoginForm from './components/LoginForm';
 import OrderForm from './components/OrderForm';
 import OrdersList from './components/OrdersList';
-import { getCustomers, createCustomer, updateCustomer, deleteCustomer, getProducts, createOrder, getOrders } from './api';
-
+import { createOrder, getOrders, getProducts } from './api';
 
 export default function App() {
-  const [customers, setCustomers] = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState('');
-  const [showForm, setShowForm]   = useState(false);
-  const [editing, setEditing]     = useState(null);
-  const [products, setProducts]   = useState([]);
-  const [showOrderForm, setShowOrderForm] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [recentCustomer, setRecentCustomer] = useState(null);
+  const [session, setSession] = useState(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('session'));
+    } catch {
+      return null;
+    }
+  });
+  const [error, setError] = useState('');
+  const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [showOrderForm, setShowOrderForm] = useState(false);
 
-  const load = async () => {
-    try {
-      setError('');
-      setLoading(true);
-      setCustomers(await getCustomers());
-    } catch {
-      setError('Cannot reach the API. Is the .NET server running?');
-    } finally {
-      setLoading(false);
-    }
+  const handleLogin = nextSession => {
+    sessionStorage.setItem('session', JSON.stringify(nextSession));
+    setSession(nextSession);
+    setError('');
   };
 
-  useEffect(() => { load(); }, []);
-
-  const loadProducts = async () => {
-    try {
-      setProducts(await getProducts());
-    } catch {
-      setError('Failed to load products.');
-    }
+  const handleLogout = () => {
+    sessionStorage.removeItem('session');
+    setSession(null);
+    setOrders([]);
+    setShowOrderForm(false);
+    setError('');
   };
 
-  useEffect(() => { loadProducts(); }, []);
-
-  const loadOrders = async () => {
-    try {
-      setOrders(await getOrders());
-    } catch {
-      setError('Failed to load orders.');
-    }
-  };
-
-  useEffect(() => { loadOrders(); }, []);
-
-  const handleSubmit = async data => {
-    try {
-      if (editing) {
-        await updateCustomer(editing.id, data);
-      } else {
-        const created = await createCustomer(data);
-        setRecentCustomer(created);
+  useEffect(() => {
+    async function loadProducts() {
+      try {
+        setProducts(await getProducts());
+      } catch {
+        setError('Failed to load products.');
       }
-      setShowForm(false);
-      setEditing(null);
-      load();
-    } catch {
-      setError('Failed to save customer.');
     }
-  };
 
-  const handleDelete = async id => {
-    if (!window.confirm('Delete this customer?')) return;
-    try { await deleteCustomer(id); load(); }
-    catch { setError('Failed to delete customer.'); }
-  };
+    loadProducts();
+  }, []);
 
-  const openOrder = customer => {
-    setSelectedCustomer(customer);
-    setShowOrderForm(true);
-    setRecentCustomer(null);
-  };
+  useEffect(() => {
+    async function loadOrders() {
+      if (!session) return;
+
+      try {
+        const allOrders = await getOrders();
+        setOrders(allOrders.filter(order => order.customerId === session.customerId));
+      } catch {
+        setError('Failed to load orders.');
+      }
+    }
+
+    loadOrders();
+  }, [session]);
 
   const handleOrderSubmit = async items => {
     try {
       await createOrder({
-        customerId: selectedCustomer.id,
+        customerId: session.customerId,
         items,
       });
+
+      const allOrders = await getOrders();
+      setOrders(allOrders.filter(order => order.customerId === session.customerId));
       setShowOrderForm(false);
-      setSelectedCustomer(null);
       setError('');
-      await loadOrders();
     } catch {
       setError('Failed to place order.');
     }
   };
+
+  if (!session) {
+    return <LoginForm onLogin={handleLogin} />;
+  }
 
   return (
     <div className="app">
       <header>
         <div>
           <h1>Customer Management</h1>
-          <span className="count">{customers.length} customer{customers.length !== 1 ? 's' : ''}</span>
+          <span className="count">Welcome, {session.firstName}!</span>
         </div>
-        <button className="btn primary" onClick={() => { setEditing(null); setShowForm(true); }}>
-          + Add Customer
-        </button>
+        <div className="actions">
+          <button className="btn primary" onClick={() => setShowOrderForm(true)}>
+            + New Order
+          </button>
+          <button className="btn secondary" onClick={handleLogout}>
+            Logout
+          </button>
+        </div>
       </header>
 
       {error && <div className="error">{error}</div>}
 
-      {recentCustomer && (
-        <div className="notice">
-          Customer {recentCustomer.firstName} added successfully.
-          <button className="btn sm order" onClick={() => openOrder(recentCustomer)}>
-            Order Now
-          </button>
-        </div>
-      )}
-
-      {loading
-        ? <p className="loading">Loading...</p>
-        : <CustomerTable customers={customers} onEdit={c => { setEditing(c); setShowForm(true); }} onDelete={handleDelete} onOrder={openOrder} />
-      }
+      <div className="card" style={{ padding: '1rem 1.5rem', marginBottom: '1rem' }}>
+        <strong>{session.firstName} {session.lastName}</strong>
+        <span className="muted" style={{ marginLeft: '1rem' }}>{session.email}</span>
+      </div>
 
       <OrdersList orders={orders} />
 
-      {showForm && (
-        <CustomerForm
-          initial={editing}
-          onSubmit={handleSubmit}
-          onCancel={() => { setShowForm(false); setEditing(null); }}
-        />
-      )}
-
-      {showOrderForm && selectedCustomer && (
+      {showOrderForm && (
         <OrderForm
-          customer={selectedCustomer}
+          customer={{
+            id: session.customerId,
+            firstName: session.firstName,
+            lastName: session.lastName,
+          }}
           products={products}
           onSubmit={handleOrderSubmit}
-          onCancel={() => { setShowOrderForm(false); setSelectedCustomer(null); }}
+          onCancel={() => setShowOrderForm(false)}
         />
       )}
     </div>

@@ -8,6 +8,7 @@ namespace CustomerManagement
         public string Email { get; set; } = string.Empty;
         public string PhoneNumber { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public AuthUser? AuthUser { get; set; }
         public ICollection<Order> Orders { get; set; } = new List<Order>();
     }
 }

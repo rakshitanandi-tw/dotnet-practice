@@ -7,6 +7,7 @@ namespace CustomerManagement
         public CustomerDbContext(DbContextOptions<CustomerDbContext> options) : base(options) { }
 
         public DbSet<Customer> Customers { get; set; }
+        public DbSet<AuthUser> AuthUsers { get; set; }
         public DbSet<Product> Products { get; set; }
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderItem> OrderItems { get; set; }
@@ -27,6 +28,23 @@ namespace CustomerManagement
                 entity.Property(e => e.Email).HasMaxLength(255).IsRequired();
                 entity.Property(e => e.PhoneNumber).HasMaxLength(20);
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            });
+
+            modelBuilder.Entity<AuthUser>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Email).HasMaxLength(255).IsRequired();
+                entity.Property(e => e.NormalizedEmail).HasMaxLength(255).IsRequired();
+                entity.Property(e => e.PasswordHash).IsRequired();
+                entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+
+                entity.HasIndex(e => e.NormalizedEmail).IsUnique();
+                entity.HasIndex(e => e.CustomerId).IsUnique();
+
+                entity.HasOne(e => e.Customer)
+                    .WithOne(c => c.AuthUser)
+                    .HasForeignKey<AuthUser>(e => e.CustomerId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             modelBuilder.Entity<Product>(entity =>
